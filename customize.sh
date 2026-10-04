@@ -6,7 +6,16 @@
 #                       кириллица для символов, которых нет в основном шрифте)
 # Настройки веса и файлов — в lib/genfont.sh
 
-MODDIR="${0%/*}"
+# Каталог модуля. MODPATH гарантированно есть у Magisk и KernelSU,
+# а ${0%/*} — нет: KernelSU Next запускает установщик с $0="sh",
+# и в строке без слеша параметр не удаляется, давая MODDIR="sh".
+MODDIR=
+for d in "$MODPATH" "${0%/*}" "$PWD"; do
+    [ -n "$d" ] && [ -f "$d/lib/genfont.sh" ] && { MODDIR="$d"; break; }
+done
+[ -n "$MODDIR" ] || \
+    abort "! Не найден lib/genfont.sh (MODPATH=$MODPATH, \$0=$0, PWD=$PWD). Похоже, повреждённый архив."
+
 MODULE_ID="google_sans_bold"
 
 . "$MODDIR/lib/genfont.sh"
@@ -30,12 +39,12 @@ find_font() {
     return 1
 }
 
-mkdir -p "$MODPATH/system/fonts"
+mkdir -p "$MODDIR/system/fonts"
 for F in "$FONT_FILE" "$FONT_ITALIC"; do
     P=$(find_font "$F") || \
         abort "! Не нашёл $F в прошивке (искал в $FONT_SEARCH). Нужен Google Sans от Google — он есть в стоковых сборках с gsans."
     ui_print "- $F <- $P"
-    cp -f "$P" "$MODPATH/system/fonts/$F" || abort "! Не удалось скопировать $F"
+    cp -f "$P" "$MODDIR/system/fonts/$F" || abort "! Не удалось скопировать $F"
 done
 
 # ---- конфликты с другими модулями шрифтов ---------------------------------
@@ -58,22 +67,22 @@ SRC_FB=/system/etc/font_fallback.xml
 grep -q '<family name="sans-serif">' "$SRC_XML" || \
     abort "! В fonts.xml нет семейства sans-serif — неподдерживаемая прошивка?"
 
-mkdir -p "$MODPATH/system/etc"
+mkdir -p "$MODDIR/system/etc"
 
 # Копии оригиналов: нужны для перепатча после обновления системы (action.sh)
-cp -f "$SRC_XML" "$MODPATH/pristine-fonts.xml"
-build_fonts_xml "$MODPATH/pristine-fonts.xml" "$MODPATH/system/etc/fonts.xml" || \
+cp -f "$SRC_XML" "$MODDIR/pristine-fonts.xml"
+build_fonts_xml "$MODDIR/pristine-fonts.xml" "$MODDIR/system/etc/fonts.xml" || \
     abort "! Не удалось перекрыть семейства в fonts.xml."
 
 # ---- font_fallback.xml (A15+; на более старых его может не быть) ------------
 if [ -f "$SRC_FB" ]; then
-    cp -f "$SRC_FB" "$MODPATH/pristine-font_fallback.xml"
-    if build_fallback_xml "$MODPATH/pristine-font_fallback.xml" \
-                  "$MODPATH/system/etc/font_fallback.xml"; then
+    cp -f "$SRC_FB" "$MODDIR/pristine-font_fallback.xml"
+    if build_fallback_xml "$MODDIR/pristine-font_fallback.xml" \
+                  "$MODDIR/system/etc/font_fallback.xml"; then
         ui_print "- font_fallback.xml: roboto, roboto-flex перекрыты"
     else
-        rm -f "$MODPATH/system/etc/font_fallback.xml" \
-              "$MODPATH/pristine-font_fallback.xml"
+        rm -f "$MODDIR/system/etc/font_fallback.xml" \
+              "$MODDIR/pristine-font_fallback.xml"
         ui_print "  (font_fallback.xml есть, но нужных семейств в нём нет)"
     fi
 else

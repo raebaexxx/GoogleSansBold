@@ -1,6 +1,6 @@
 id=google_sans_bold
 name=Google Sans Bold (systemless)
-version=v3.0
-versionCode=30000
+version=v3.1
+versionCode=31000
 author=raebae
 description=Перекрывает sans-serif и roboto-flex в fonts.xml, а также roboto и roboto-flex в font_fallback.xml на Google Sans (обычный, с кириллицей) и переводит все начертания на wght 700, чтобы текст был полужирным во всех приложениях, включая те, что рисуют текст сами (Telegram, Canvas, Compose). Сами шрифты не входят в модуль: копируются из /product/fonts при установке. Вес и пути настраиваются в lib/genfont.sh

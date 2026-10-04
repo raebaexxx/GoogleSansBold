@@ -4,7 +4,11 @@
 # Пересобирает fonts.xml и font_fallback.xml из сохранённых оригиналов.
 # Нужно после обновления прошивки: система могла поменять эти файлы.
 
-MODDIR="${0%/*}"
+# MODPATH надёжнее ${0%/*}: см. комментарий в customize.sh
+MODDIR=
+for d in "$MODPATH" "${0%/*}" "$PWD"; do
+    [ -n "$d" ] && [ -f "$d/lib/genfont.sh" ] && { MODDIR="$d"; break; }
+done
 
 . "$MODDIR/lib/genfont.sh"
 
