@@ -25,26 +25,24 @@ ui_print " Google Sans Bold (systemless)   "
 ui_print "***********************************"
 ui_print " Вес всех начертаний: wght $FIXED_WEIGHT"
 
-# ---- шрифты: берём из прошивки, в архиве их нет ---------------------------
-# Google Sans — проприетарные файлы Google, они не распространяются.
-# В любой сборке с vendor/pixel/gsans они уже лежат в /product/fonts,
-# поэтому модуль просто копирует их к себе в /system/fonts.
-FONT_SEARCH="/product/fonts /system/fonts /system_ext/fonts /vendor/fonts /odm/fonts"
+# ---- шрифты ----------------------------------------------------------------
+# Каталог system/ обязан существовать в архиве: иначе менеджер не выставит
+# на него права и SELinux-контекст (KernelSU Next делает это сразу после
+# распаковки, до запуска установщика), и монтирование не взлетит.
+# Google Sans распространяется под SIL OFL 1.1, см. LICENSE-OFL.txt.
+mkdir -p "$MODDIR/system/fonts" "$MODDIR/system/etc"
 
-find_font() {
-    local name="$1" d
-    for d in /product/fonts /system/fonts /system_ext/fonts /vendor/fonts /odm/fonts; do
-        [ -f "$d/$name" ] && { echo "$d/$name"; return 0; }
-    done
-    return 1
-}
-
-mkdir -p "$MODDIR/system/fonts"
 for F in "$FONT_FILE" "$FONT_ITALIC"; do
-    P=$(find_font "$F") || \
-        abort "! Не нашёл $F в прошивке (искал в $FONT_SEARCH). Нужен Google Sans от Google — он есть в стоковых сборках с gsans."
-    ui_print "- $F <- $P"
-    cp -f "$P" "$MODDIR/system/fonts/$F" || abort "! Не удалось скопировать $F"
+    [ -f "$MODDIR/system/fonts/$F" ] && continue
+    # страховка: если файла в архиве нет, ищем в прошивке
+    for d in /product/fonts /system/fonts /system_ext/fonts /vendor/fonts /odm/fonts; do
+        if [ -f "$d/$F" ]; then
+            ui_print "- $F <- $d/$F"
+            cp -f "$d/$F" "$MODDIR/system/fonts/$F" && break
+        fi
+    done
+    [ -f "$MODDIR/system/fonts/$F" ] || \
+        abort "! Нет шрифта $F: нет в архиве и не нашёлся в прошивке."
 done
 
 # ---- конфликты с другими модулями шрифтов ---------------------------------
@@ -66,8 +64,6 @@ SRC_FB=/system/etc/font_fallback.xml
 [ -f "$SRC_XML" ] || abort "! Не найден $SRC_XML"
 grep -q '<family name="sans-serif">' "$SRC_XML" || \
     abort "! В fonts.xml нет семейства sans-serif — неподдерживаемая прошивка?"
-
-mkdir -p "$MODDIR/system/etc"
 
 # Копии оригиналов: нужны для перепатча после обновления системы (action.sh)
 cp -f "$SRC_XML" "$MODDIR/pristine-fonts.xml"
