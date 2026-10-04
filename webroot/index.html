@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Google Sans Bold</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --fg: #1b1c1e; --dim: #5f6368;
+    --line: #e3e5e8; --accent: #1a73e8; --accent-fg: #fff;
+    --ok: #188038; --err: #c5221f; --warn: #b06000;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121316; --card: #1c1d21; --fg: #e6e7ea; --dim: #9aa0a6;
+      --line: #2c2d31; --accent: #8ab4f8; --accent-fg: #06213f;
+      --ok: #81c995; --err: #f28b82; --warn: #fdd663;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px 16px 32px;
+    background: var(--bg); color: var(--fg);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding-top: max(16px, env(safe-area-inset-top));
+  }
+  h1 { font-size: 19px; margin: 0 0 2px; }
+  .sub { color: var(--dim); font-size: 13px; margin-bottom: 18px; }
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 14px; margin-bottom: 14px;
+  }
+  .label { font-size: 13px; color: var(--dim); margin-bottom: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  button {
+    font: inherit; color: var(--fg); background: transparent;
+    border: 1.5px solid var(--line); border-radius: 10px;
+    padding: 10px 6px; cursor: pointer; text-align: center; line-height: 1.25;
+  }
+  button:active { transform: scale(.97); }
+  button .w { display: block; font-size: 17px; font-variant-numeric: tabular-nums; }
+  button .n { display: block; font-size: 11px; color: var(--dim); }
+  button.sel { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  button.sel .n { color: var(--accent-fg); opacity: .85; }
+  .row { display: flex; align-items: center; gap: 10px; margin: 4px 0 2px; }
+  .row input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); }
+  .wide { width: 100%; padding: 13px; font-weight: 600; }
+  .primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .log {
+    font: 12.5px/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    white-space: pre-wrap; word-break: break-word;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px; margin-top: 10px; max-height: 190px; overflow: auto;
+  }
+  .muted { color: var(--dim); }
+  .warn { color: var(--warn); }
+  .ok { color: var(--ok); }
+  .err { color: var(--err); }
+  .sample { font-size: 20px; margin: 6px 0 2px; }
+</style>
+</head>
+<body>
+  <h1>Google Sans Bold</h1>
+  <div class="sub" id="path">загрузка…</div>
+
+  <div class="card">
+    <div class="label">Начертания</div>
+    <div class="grid" id="weights"></div>
+    <div class="row" style="margin-top:12px">
+      <input type="checkbox" id="cond">
+      <label for="cond">перекрывать <span style="font-family:monospace">sans-serif-condensed</span></label>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="label">Пример</div>
+    <div class="sample" id="sample">Толстый текст — Проверка 0123</div>
+    <div class="muted" style="font-size:12.5px" id="previewNote">
+      Настоящий шрифт применится после перезагрузки.
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="wide primary" id="apply">Применить</button>
+    <div style="height:8px"></div>
+    <button class="wide" id="reboot">Применить и перезагрузить</button>
+    <div class="log" id="log">Готово к работе.</div>
+  </div>
+
+  <div class="card muted" style="font-size:13px">
+    Тумблер <b>«Жирный»</b> в настройках дисплея держи выключенным —
+    он добавляет вес поверх и получится вдвое жирнее.
+  </div>
+
+<script>
+(function () {
+  var PRESETS = [
+    { w: 400, n: 'Обычный' },
+    { w: 500, n: 'Средний' },
+    { w: 600, n: 'Полужирный' },
+    { w: 700, n: 'Жирный' }
+  ];
+  // Google Sans — переменный шрифт с диапазоном wght 400..700, поэтому
+  // вариантов выше 700 нет: Minikin всё равно зажмёт значение.
+  var dir = '/data/adb/modules/google_sans_bold';
+  var weight = 700;
+  var condensed = 1;
+  var pending = null;
+
+  function log(s, cls) {
+    var el = document.getElementById('log');
+    el.textContent = s;
+    el.className = 'log' + (cls ? ' ' + cls : '');
+  }
+  function haveKsu() { return typeof ksu !== 'undefined' && ksu; }
+
+  function render() {
+    var grid = document.getElementById('weights');
+    grid.innerHTML = '';
+    PRESETS.forEach(function (p) {
+      var b = document.createElement('button');
+      b.innerHTML = '<span class="w">' + p.w + '</span><span class="n">' + p.n + '</span>';
+      if (p.w === weight) b.className = 'sel';
+      b.onclick = function () { weight = p.w; render(); };
+      grid.appendChild(b);
+    });
+    document.getElementById('cond').checked = condensed === 1;
+    var s = document.getElementById('sample');
+    s.style.fontWeight = weight;
+    document.getElementById('previewNote').textContent =
+      'предпросмотр — системным sans-serif; применится после перезагрузки';
+  }
+
+  function parseConf(text) {
+    var m;
+    if ((m = text.match(/^WEIGHT=(\d+)/m))) {
+      var w = parseInt(m[1], 10);
+      if (w >= 400 && w <= 700) weight = w;
+    }
+    if ((m = text.match(/^CONDENSED=(\d+)/m))) condensed = parseInt(m[1], 10);
+  }
+
+  // API KernelSU находит колбэк по имени в глобальной области,
+  // поэтому функция обязана быть на window, а не внутри IIFE.
+  function onShell(code, out, err) {
+    var fn = pending;
+    pending = null;
+    if (fn) fn(code, out || '', err || '');
+  }
+  window.onShell = onShell;
+
+  function apply(reboot) {
+    if (!haveKsu()) return;
+    var cmd = 'sh ' + dir + '/rebuild.sh ' + weight + ' ' + condensed +
+              (reboot ? '' : ' no-reboot');
+    log('Пересобираю…');
+    // Колбэк в API KernelSU передаётся именем функции, а не ссылкой
+    pending = function (code, out) {
+      var o = out.trim();
+      if (code !== 0) {
+        log(o || ('ошибка, код ' + code), 'err');
+        ksu.toast('Не удалось применить');
+        return;
+      }
+      log(o, 'ok');
+      if (reboot) {
+        ksu.toast('Перезагрузка…');
+        ksu.exec('svc power reboot || reboot');
+      } else {
+        ksu.toast('Готово, нужен ребут');
+      }
+    };
+    ksu.exec(cmd, 'onShell');
+  }
+
+  function readConfig() {
+    pending = function (code, out) {
+      if (out.indexOf('WEIGHT=') === -1) {
+        log('config.cfg не найден — он создастся при первом применении', 'warn');
+        render();
+        return;
+      }
+      parseConf(out);
+      render();
+      log('Сейчас: wght ' + weight + (condensed === 1
+          ? ', sans-serif-condensed тоже перекрыт' : ', condensed не тронут'));
+    };
+    ksu.exec('cat ' + dir + '/config.conf 2>/dev/null', 'onShell');
+  }
+
+  function init() {
+    if (haveKsu()) {
+      try {
+        var info = JSON.parse(ksu.moduleInfo());
+        if (info && info.moduleDir) dir = info.moduleDir;
+      } catch (e) {}
+    }
+    document.getElementById('path').textContent = dir;
+    render();
+
+    document.getElementById('cond').onchange = function (e) {
+      condensed = e.target.checked ? 1 : 0;
+    };
+    document.getElementById('apply').onclick = function () { apply(false); };
+    document.getElementById('reboot').onclick = function () { apply(true); };
+
+    if (haveKsu()) readConfig();
+    else log('Открывай из KernelSU: модуль → Google Sans Bold → шестерёнка', 'warn');
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

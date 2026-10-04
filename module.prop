@@ -1,6 +1,6 @@
 id=google_sans_bold
 name=Google Sans Bold (systemless)
-version=v3.4
-versionCode=34000
+version=v3.5
+versionCode=35000
 author=raebae
 description=Все начертания системного шрифта на Google Sans wght 700. Перекрывает sans-serif, sans-serif-condensed, roboto и roboto-flex в /system/etc/font_fallback.xml и fonts.xml, а также все оси wght в /product/etc/fonts_customization.xml (google-sans, google-sans-text, variable-* — то, что просит системный UI). Кириллица не ломается: используется GoogleSans-Regular, а не Flex. Шрифты под SIL OFL 1.1, лицензия в архиве. Вес настраивается в lib/genfont.sh
