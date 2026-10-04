@@ -115,3 +115,32 @@ build_fonts_xml() {
 build_fallback_xml() {
     build_xml "$1" "$2" sans-serif sans-serif-condensed roboto roboto-flex
 }
+
+# /product/etc/fonts_customization.xml — OEM-семейства Pixel: google-sans,
+# google-sans-text, google-sans-clock и все variable-*.
+# Именно их просит системный UI через styles_device_defaults.xml:
+#   fontFamily = @string/config_bodyFontFamily  -> google-sans-text
+#   fontFamily = variable-body-medium, variable-title-small-emphasized, ...
+# Поэтому все wght в этом файле переводятся на FIXED_WEIGHT.
+# Порядок атрибутов не важен — правим по наличию tag="wght".
+build_product_xml() {
+    awk -v w="$FIXED_WEIGHT" '
+        /<axis/ && /tag="wght"/ {
+            gsub(/stylevalue="[^"]*"/, "stylevalue=\"" w "\"")
+            touched = 1
+        }
+        { print }
+        END { exit(touched ? 0 : 1) }
+    ' "$1" > "$2"
+}
+
+# Каталог product в модуле. На этапе установки он лежит в system/product,
+# а KernelSU Next переносит его в корень модуля:
+#   handle_partition() { mv -f $MODPATH/system/$1 $MODPATH/$1 ... }
+product_dir() {
+    if [ -d "$MODDIR/product" ]; then
+        echo "$MODDIR/product"
+    else
+        echo "$MODDIR/system/product"
+    fi
+}

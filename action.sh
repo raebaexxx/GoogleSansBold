@@ -34,4 +34,21 @@ if [ -f "$PF" ]; then
     fi
 fi
 
+# product/etc/fonts_customization.xml лежит уже в product/, а не system/product/:
+# KernelSU Next переносит каталог на этапе установки (handle_partition).
+PC="$MODDIR/pristine-fonts_customization.xml"
+if [ -f "$PC" ]; then
+    PDIR=$(product_dir)
+    mkdir -p "$PDIR/etc" "$PDIR/fonts"
+    if build_product_xml "$PC" "$PDIR/etc/fonts_customization.xml"; then
+        [ -f "$MODDIR/system/fonts/$FONT_FILE" ] && \
+            cp -f "$MODDIR/system/fonts/$FONT_FILE" "$PDIR/fonts/$FONT_FILE"
+        [ -f "$MODDIR/system/fonts/$FONT_ITALIC" ] && \
+            cp -f "$MODDIR/system/fonts/$FONT_ITALIC" "$PDIR/fonts/$FONT_ITALIC"
+        echo "fonts_customization.xml: все wght -> $FIXED_WEIGHT"
+    else
+        echo "fonts_customization.xml: осей wght нет, пропущен"
+    fi
+fi
+
 echo "Теперь перезагрузи устройство."

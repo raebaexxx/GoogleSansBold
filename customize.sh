@@ -30,7 +30,7 @@ ui_print " Вес всех начертаний: wght $FIXED_WEIGHT"
 # на него права и SELinux-контекст (KernelSU Next делает это сразу после
 # распаковки, до запуска установщика), и монтирование не взлетит.
 # Google Sans распространяется под SIL OFL 1.1, см. LICENSE-OFL.txt.
-mkdir -p "$MODDIR/system/fonts" "$MODDIR/system/etc"
+mkdir -p "$MODDIR/system/fonts" "$MODDIR/system/etc" "$MODDIR/system/product/etc" "$MODDIR/system/product/fonts"
 
 for F in "$FONT_FILE" "$FONT_ITALIC"; do
     [ -f "$MODDIR/system/fonts/$F" ] && continue
@@ -54,6 +54,10 @@ for M in /data/adb/modules/*/; do
     for F in fonts.xml fonts_base.xml font_fallback.xml; do
         [ -f "$M/system/etc/$F" ] && \
             abort "! Конфликт: модуль '$MNAME' тоже перекрывает $F. Отключи или удали его."
+    done
+    for F in "$M/system/product/etc/fonts_customization.xml" "$M/product/etc/fonts_customization.xml"; do
+        [ -f "$F" ] && \
+            abort "! Конфликт: модуль '$MNAME' тоже перекрывает fonts_customization.xml. Отключи или удали его."
     done
 done
 
@@ -83,6 +87,30 @@ if [ -f "$SRC_FB" ]; then
     fi
 else
     ui_print "  (font_fallback.xml нет — кириллица берётся из sans-serif)"
+fi
+
+# ---- product/etc/fonts_customization.xml -----------------------------------
+# Системный UI (styles_device_defaults.xml) просит google-sans-text и
+# variable-*, которые объявлены именно здесь. Без этого остаётся стоковый.
+SRC_PRD=/product/etc/fonts_customization.xml
+if [ -f "$SRC_PRD" ]; then
+    cp -f "$SRC_PRD" "$MODDIR/pristine-fonts_customization.xml"
+    if build_product_xml "$MODDIR/pristine-fonts_customization.xml" \
+                        "$MODDIR/system/product/etc/fonts_customization.xml"; then
+        # шрифты для OEM-семейств: парсер берёт их из /product/fonts
+        cp -f "$MODDIR/system/fonts/$FONT_FILE" \
+              "$MODDIR/system/product/fonts/$FONT_FILE" 2>/dev/null
+        cp -f "$MODDIR/system/fonts/$FONT_ITALIC" \
+              "$MODDIR/system/product/fonts/$FONT_ITALIC" 2>/dev/null
+        ui_print "- fonts_customization.xml: все wght -> $FIXED_WEIGHT"
+        ui_print "  (google-sans, google-sans-text, variable-* — то, что просит системный UI)"
+    else
+        rm -f "$MODDIR/system/product/etc/fonts_customization.xml" \
+              "$MODDIR/pristine-fonts_customization.xml"
+        ui_print "  (fonts_customization.xml без осей wght — пропущен)"
+    fi
+else
+    ui_print "  (fonts_customization.xml нет — Pixel-семейства не тронуты)"
 fi
 
 ui_print "- fonts.xml: sans-serif, roboto-flex перекрыты"

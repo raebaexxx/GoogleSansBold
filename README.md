@@ -8,8 +8,31 @@ Magisk/KernelSU-модуль для Android. Переводит **все нач�
 
 | Файл | Семейства |
 |---|---|
-| `/system/etc/font_fallback.xml` | `sans-serif`, `sans-serif-condensed`, `roboto`, `roboto-flex` |
-| `/system/etc/fonts.xml` | `sans-serif`, `sans-serif-condensed`, `roboto-flex` |
+| Файл | Что делается |
+|---|---|
+| `/system/etc/font_fallback.xml` | семейства `sans-serif`, `sans-serif-condensed`, `roboto`, `roboto-flex` заменяются |
+| `/system/etc/fonts.xml` | то же (legacy-путь) |
+| `/product/etc/fonts_customization.xml` | **все** оси `wght` переводятся на `FIXED_WEIGHT` |
+
+Третий файл нужен потому, что системный UI идёт мимо `sans-serif`. В `frameworks/base/core/res/res/values/styles_device_defaults.xml` Material-стили текста прямо ссылаются на:
+
+```xml
+<item name="android:fontFamily">@string/config_bodyFontFamily</item>
+<item name="android:fontFamily">variable-body-medium</item>
+<item name="android:fontFamily">variable-title-small-emphasized</item>
+```
+
+`config_bodyFontFamily` на Pixel-прошивках равен `google-sans-text`, а сами `google-sans*` и `variable-*` объявлены в `/product/etc/fonts_customization.xml` со своими весами 400/500/600/700. Без перекрытия этого файла приложения получают жирный Google Sans, а системный UI остаётся стоковым.
+
+Модуль кладёт файлы в `system/product/...` — KernelSU Next переносит такой каталог в корень модуля:
+
+```sh
+handle_partition() {
+    # if /system/vendor is a symlink, we need to move it out of $MODPATH/system
+    mv -f $MODPATH/system/$1 $MODPATH/$1 && ln -sf ../$1 $MODPATH/system/$1
+}
+handle_partition product
+```
 
 **Почему оба файла.** На Android 15+ рабочей шрифтовой конфигурацией стал `font_fallback.xml`, а `fonts.xml` числится legacy — его читает только прелоад в zygote:
 
