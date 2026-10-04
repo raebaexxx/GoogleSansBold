@@ -103,10 +103,15 @@ build_xml() {
 }
 
 # Обёртки под конкретные файлы.
+#
+# ВАЖНО: на Android 15+ рабочим файлом шрифтовой конфигурации является
+# /system/etc/font_fallback.xml, а fonts.xml числится legacy и используется
+# только для прелоада в zygote (SystemFonts.FONTS_XML против
+# LEGACY_FONTS_XML). Поэтому sans-serif обязательно перекрывается в обоих.
 build_fonts_xml() {
-    build_xml "$1" "$2" sans-serif roboto-flex
+    build_xml "$1" "$2" sans-serif sans-serif-condensed roboto-flex
 }
 
 build_fallback_xml() {
-    build_xml "$1" "$2" roboto roboto-flex
+    build_xml "$1" "$2" sans-serif sans-serif-condensed roboto roboto-flex
 }

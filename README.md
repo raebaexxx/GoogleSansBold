@@ -8,8 +8,21 @@ Magisk/KernelSU-модуль для Android. Переводит **все нач�
 
 | Файл | Семейства |
 |---|---|
-| `/system/etc/fonts.xml` | `sans-serif`, `roboto-flex` |
-| `/system/etc/font_fallback.xml` | `roboto`, `roboto-flex` (Android 15+) |
+| `/system/etc/font_fallback.xml` | `sans-serif`, `sans-serif-condensed`, `roboto`, `roboto-flex` |
+| `/system/etc/fonts.xml` | `sans-serif`, `sans-serif-condensed`, `roboto-flex` |
+
+**Почему оба файла.** На Android 15+ рабочей шрифтовой конфигурацией стал `font_fallback.xml`, а `fonts.xml` числится legacy — его читает только прелоад в zygote:
+
+```java
+// SystemFonts.java
+private static final String FONTS_XML = getFontsXmlDir() + "font_fallback.xml";
+public static final String LEGACY_FONTS_XML = getFontsXmlDir() + "fonts.xml";
+
+// Typeface.init() — только прелоад, с TODO на переход на новый файл
+FontConfig config = SystemFonts.getSystemPreinstalledFontConfigFromLegacyXml();
+```
+
+А карту шрифтов, по которой реально рисуют приложения, отдаёт `FontManagerService.getSystemFontConfig()` → `getSystemPreinstalledFontConfig()`, и она парсит именно `font_fallback.xml`. Правка одного только `fonts.xml` не даёт ничего.
 
 Все → `GoogleSans-Regular.ttf` / `GoogleSans-Italic.ttf`, все веса → `wght 700`.
 
@@ -63,7 +76,6 @@ FONT_ITALIC="GoogleSans-Italic.ttf"
 
 ## Что НЕ перекрывается
 
-- `sans-serif-condensed` — у Google Sans нет оси `wdth`, сжатый вариант сделать нечем, остаётся системный Roboto Flex Condensed
 - моноширинный — `GoogleSansCode.ttf` тоже без кириллицы, оставлен системный, иначе русский в терминалах уедет в fallback
 - `serif`, `source-sans-pro`, `casual`, `cursive`
 - семейства `variable-*` и `/product/etc/fonts_customization.xml` (Pixel-специфичные)
